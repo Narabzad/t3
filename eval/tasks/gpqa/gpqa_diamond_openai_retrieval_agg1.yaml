@@ -1,0 +1,31 @@
+dataset_path: Idavidrein/gpqa
+tag: gpqa
+dataset_name: gpqa_diamond
+task: gpqa_diamond_openai_retrieval_agg1
+output_type: generate_until
+process_docs: !function utils.process_docs_with_retrieval
+process_results: !function utils.process_results
+training_split: train
+validation_split: train
+test_split: null
+doc_to_text: !function utils.doc_to_text_with_retrieval_gpqa
+doc_to_target: answer
+num_fewshot: 0
+generation_kwargs:
+  until: []
+  do_sample: false
+  temperature: 1
+  max_gen_toks: 16384
+repeats: 1
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+  - metric: extracted_answers
+    aggregation: bypass
+    higher_is_better: true
+  - metric: exact_matches
+    aggregation: bypass
+    higher_is_better: true
+metadata:
+  version: 1.0

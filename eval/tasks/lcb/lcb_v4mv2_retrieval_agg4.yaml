@@ -1,0 +1,28 @@
+tag:
+  - code_generation
+task: lcb_v4mv2_retrieval_agg4
+dataset_path: json
+dataset_kwargs:
+  data_files:
+    test: /future/u/negara/home/private-retrieval-lm/s1/s1/eval/lm-evaluation-harness/lm_eval/tasks/lcb/lcb_v4_minus_v2_data.jsonl
+test_split: test
+process_docs: !function utils.process_docs_with_retrieval
+output_type: generate_until
+doc_to_text: !function utils.doc_to_text
+doc_to_target: question_id
+process_results: !function utils.process_results
+generation_kwargs:
+  until: []
+  do_sample: true
+  temperature: 0.6
+  max_gen_toks: 16384
+repeats: 4
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+  - metric: pass_at_1
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0
