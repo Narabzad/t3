@@ -116,3 +116,76 @@ Query files (`.jsonl`): each line is a JSON object with fields:
 
 Retrieved results files (`.jsonl`): same fields plus:
 - `ctxs`: list of retrieved passages, each with `id`, `title`, `text`, `score`
+
+## Transformation Code
+
+`data_transform/` contains the scripts to reproduce the `p_cheatsheet`, `p_contrastive`, and `p_multipass` passages from raw reasoning traces:
+
+```bash
+# Install deps
+pip install openai tqdm
+
+# Run all three transformations on a trajectories file
+python data_transform/run_all_prompts_gpt.py \
+    --input  trajectories_with_questions_58k.jsonl \
+    --outdir outputs/ \
+    --prompts p_cheatsheet p_contrastive p_multipass \
+    --model  gpt-5-nano \
+    --concurrency 50
+```
+
+The script is resume-safe: re-running picks up where it left off.
+
+### Prompt descriptions
+
+| Prompt | Description |
+|--------|-------------|
+| `p_cheatsheet` | Step-by-step cheatsheet per solution approach (can produce multiple per trace) |
+| `p_contrastive` | Compares a correct approach with a common mistake |
+| `p_multipass` | Multi-pass structured hint building up solution incrementally |
+
+## HuggingFace Dataset
+
+The full dataset (58,071 trajectories with all three transformations) is on HuggingFace:
+
+```python
+from datasets import load_dataset
+ds = load_dataset("Narabzad/t3-rag-hints")
+# Columns: unique_id, question, answer, subject, level, cot_type,
+#          trace, p_cheatsheet (list), p_contrastive (list), p_multipass (list)
+```
+
+To rebuild and re-push:
+```bash
+cd data_transform
+HF_TOKEN=<your_token> python create_hf_dataset.py \
+    --input ../trajectories_with_questions_58k.jsonl \
+    --outdir ../outputs/ \
+    --push
+```
+
+## Simple Single-Run Eval
+
+`eval/scripts/run_single_eval.sh` runs one benchmark with or without retrieval:
+
+```bash
+# With retrieval
+bash eval/scripts/run_single_eval.sh \
+    --model gpt5 \
+    --bench gpqa \
+    --retrieval data/retrieved_results/gpqa/p_cheatsheet_e5base_full.jsonl
+
+# No-RAG baseline
+bash eval/scripts/run_single_eval.sh \
+    --model gpt5 \
+    --bench aime \
+    --no-rag
+
+# Gemini with retrieval
+bash eval/scripts/run_single_eval.sh \
+    --model gemini \
+    --bench lcb \
+    --retrieval data/retrieved_results/lcb_v4/p_cheatsheet_e5base_full.jsonl
+```
+
+Required env vars: `OPENAI_API_KEY` (gpt5), `OPENROUTER_API_KEY` (oss120b), `GEMINI_API_KEY` (gemini).

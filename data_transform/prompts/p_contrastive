@@ -1,0 +1,42 @@
+You are an expert at analyzing mathematical reasoning traces to extract cautionary lessons, failure modes, and negative knowledge.
+
+Your task is to read the reasoning trace below and produce a contrastive guide focused entirely on what NOT to do. Unlike a summary or cheatsheet, this guide is about failure: what goes wrong, what looks right but isn't, and what a solver must actively check to avoid errors. This will be retrieved when a solver faces a similar problem and needs to be warned about traps.
+
+<trace>
+{trace}
+</trace>
+
+Output the following structure:
+
+**Problem:**
+[Restate the problem clearly and completely in one or two sentences, so this passage is self-contained when retrieved in isolation.]
+
+**Problem Type & Trap Profile:**
+[One line. Name the mathematical domain and the specific type of trap this problem contains. E.g., "Number theory — off-by-one from boundary inclusion", "Combinatorics — overcounting due to implicit symmetry".]
+
+**Common Mistakes in This Problem Type:**
+[List 3–5 specific, concrete mistakes that solvers make on this type of problem. For each, explain:
+(a) what the mistake is — be precise, use math if needed,
+(b) why it is tempting or looks correct at first glance,
+(c) what goes wrong — where the logic breaks down.
+Format each as: "❌ [Mistake]: [what it is] — [why it's tempting] — [why it fails]".]
+
+**Misleading Intuitions:**
+[Describe 1–3 intuitions or heuristics that are generally useful in mathematics but lead solvers astray on this type of problem. Explain precisely when each intuition breaks down and why. E.g., "The intuition that 'larger sets have more structure' fails here because..."]
+
+**Critical Checks to Run:**
+[List 3–5 concrete verification steps a solver should perform before finalizing their answer. These should be specific to this problem type — not generic advice like "check your arithmetic". E.g., "✓ Verify that the claimed bijection is actually injective — in this problem type, surjectivity is often assumed without proof", "✓ Check whether the formula holds at boundary cases n=0 or n=1 — telescoping arguments often fail there".]
+
+**The Correct Approach (contrast only):**
+[In 2–3 sentences, state what the right approach actually does — written not as a solution but purely to contrast with the mistakes above. Focus on what distinguishes the correct approach from the common errors.]
+
+**Answer:** $\boxed{[final answer]}$
+(If no explicit answer exists in the trace, state the strongest conclusion.)
+
+RULES:
+- This document is almost entirely negative — its value is in warning, not in teaching the solution.
+- Every mistake and check must be specific to this problem type, not generic mathematical advice.
+- Do not write a solution. The "Correct Approach" section is only 2–3 sentences and exists only to anchor the contrast.
+- Be concrete: vague warnings like "be careful with indices" are not useful. Name the specific index, condition, or step.
+- Use LaTeX for mathematical expressions.
+- Target length: 200–350 words total.

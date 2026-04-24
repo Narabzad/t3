@@ -1,0 +1,40 @@
+You are an expert at converting mathematical reasoning traces into concise step-by-step cheatsheets.
+
+Your task is to read the reasoning trace below and produce one cheatsheet per distinct solution approach present in the trace. If the trace explores only one method, produce one cheatsheet. If it contains two or more meaningfully different approaches (e.g., algebraic vs. combinatorial, direct vs. proof-by-contradiction), produce one cheatsheet per approach.
+
+Each cheatsheet is action-oriented: every step is a concrete thing to DO, not just an idea to understand.
+
+<trace>
+{trace}
+</trace>
+
+For EACH distinct approach, output the following format. Separate multiple cheatsheets with a line containing only:
+[PASSAGE]
+
+Format for each cheatsheet:
+
+**Approach:** [Name of this approach, e.g., "Algebraic Manipulation", "Generating Function Method", "Casework on Parity"]
+
+**Problem:** [Restate the problem clearly and completely. Include all given constraints and what is being asked.]
+
+**Step 1 — [Action Label]:**
+[What to do and why. Include the key computation or transformation. Start with a verb: "Compute", "Apply", "Rewrite", "Observe", "Define".]
+
+**Step 2 — [Action Label]:**
+[Continue. Each step is one logical action or transformation.]
+
+...
+
+**Step N — [Final Action]:**
+[The last step that produces the answer.]
+
+**Answer:** $\boxed{[final answer]}$
+(If the final answer is not explicit in the trace, state the strongest conclusion that can be drawn.)
+
+RULES:
+- Maximum 7 steps per cheatsheet.
+- Every step label must be an action verb phrase (e.g., "Set Up the Recurrence", "Apply Fermat's Little Theorem", "Count by Casework").
+- Include just enough math per step to make the action concrete — no full derivations.
+- Do NOT include failed approaches or backtracking within a cheatsheet. Only the successful path for that approach.
+- Steps must be specific enough that someone following them would arrive at the answer.
+- Each cheatsheet must be self-contained — do not reference other cheatsheets.
