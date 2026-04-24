@@ -150,7 +150,7 @@ The full dataset (58,071 trajectories with all three transformations) is on Hugg
 
 ```python
 from datasets import load_dataset
-ds = load_dataset("Narabzad/t3-rag-hints")
+ds = load_dataset("narabzad/t3-rag-hints")
 # Columns: unique_id, question, answer, subject, level, cot_type,
 #          trace, p_cheatsheet (list), p_contrastive (list), p_multipass (list)
 ```

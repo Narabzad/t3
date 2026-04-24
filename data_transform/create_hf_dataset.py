@@ -18,7 +18,7 @@ Usage:
     python create_hf_dataset.py \\
         --input   trajectories_with_questions_58k.jsonl \\
         --outdir  outputs/ \\
-        --repo    Narabzad/t3-rag-hints \\
+        --repo    narabzad/t3-rag-hints \\
         [--push]
 """
 
@@ -88,7 +88,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input",  default="trajectories_with_questions_58k.jsonl")
     parser.add_argument("--outdir", default="outputs")
-    parser.add_argument("--repo",   default="Narabzad/t3-rag-hints")
+    parser.add_argument("--repo",   default="narabzad/t3-rag-hints")
     parser.add_argument("--push",   action="store_true", help="Push to HuggingFace Hub")
     args = parser.parse_args()
 
