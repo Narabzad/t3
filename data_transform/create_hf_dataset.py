@@ -3,9 +3,8 @@
 Build and push the T3 RAG-hints dataset to HuggingFace.
 
 Schema (one row per trajectory):
-  unique_id    str    — from metadata.unique_id
   question     str    — original math question
-  answer       str    — correct answer
+  answer       str    — correct answer (empty for proof problems)
   subject      str    — math subject
   level        int    — difficulty level
   cot_type     str    — e.g. "math"
@@ -18,15 +17,69 @@ Usage:
     python create_hf_dataset.py \\
         --input   trajectories_with_questions_58k.jsonl \\
         --outdir  outputs/ \\
-        --repo    narabzad/t3-rag-hints \\
+        --repo    narabzad/t3-rag \\
         [--push]
 """
 
 import argparse
+import ast
 import json
 from pathlib import Path
 
 from datasets import Dataset
+
+
+def _clean(v) -> str:
+    """Stringify and strip; return '' for None/null/None-string."""
+    s = str(v).strip() if v is not None else ""
+    return "" if s.lower() in ("none", "null", "") else s
+
+
+def extract_answer(meta: dict) -> str:
+    """Extract the best available answer string from a metadata dict."""
+    # Standard S1K-style: direct answer key
+    v = _clean(meta.get("answer"))
+    if v:
+        return v
+    # GPQA-style: 'Correct Answer' (or revised variant)
+    v = _clean(meta.get("Extra Revised Correct Answer") or meta.get("Correct Answer"))
+    if v:
+        return v
+    # Multiple-choice with label index into options list
+    if "label" in meta:
+        opts = meta.get("options", [])
+        if isinstance(opts, list) and opts:
+            try:
+                v = _clean(opts[int(meta["label"])])
+                if v:
+                    return v
+            except (ValueError, IndexError):
+                pass
+        v = _clean(meta.get("label"))
+        if v:
+            return v
+    # OlympiadBench-style: final_answer
+    v = _clean(meta.get("final_answer"))
+    if v:
+        return v
+    # Proof / open-ended problems (aops_forum messages, USACO, etc.) have no
+    # single answer — return empty string intentionally.
+    return ""
+
+
+def parse_metadata(raw) -> dict:
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return ast.literal_eval(raw)
+        except Exception:
+            pass
+        try:
+            return json.loads(raw)
+        except Exception:
+            pass
+    return {}
 
 
 def load_passages(path: Path) -> dict[int, list[str]]:
@@ -46,7 +99,6 @@ def load_passages(path: Path) -> dict[int, list[str]]:
 
 
 def build(input_path: Path, outdir: Path) -> Dataset:
-    # Load original trajectories
     originals = []
     with open(input_path) as f:
         for line in f:
@@ -54,28 +106,21 @@ def build(input_path: Path, outdir: Path) -> Dataset:
             if line:
                 originals.append(json.loads(line))
 
-    # Load transformed passages
     cheatsheet  = load_passages(outdir / "p_cheatsheet.jsonl")
     contrastive = load_passages(outdir / "p_contrastive.jsonl")
     multipass   = load_passages(outdir / "p_multipass.jsonl")
 
     rows = []
     for idx, rec in enumerate(originals):
-        meta = rec.get("metadata", {})
-        if isinstance(meta, str):
-            try:
-                meta = json.loads(meta.replace("'", '"'))
-            except Exception:
-                meta = {}
+        meta = parse_metadata(rec.get("metadata", {}))
 
         rows.append({
-            "unique_id":    meta.get("unique_id", ""),
-            "question":     rec.get("question", ""),
-            "answer":       str(meta.get("answer", "")),
-            "subject":      meta.get("subject", ""),
-            "level":        int(meta.get("level", 0)) if meta.get("level") is not None else 0,
-            "cot_type":     rec.get("cot_type", ""),
-            "trace":        rec.get("text", ""),
+            "question":      rec.get("question", ""),
+            "answer":        extract_answer(meta),
+            "subject":       _clean(meta.get("subject", "")),
+            "level":         int(meta["level"]) if meta.get("level") is not None else 0,
+            "cot_type":      rec.get("cot_type", ""),
+            "trace":         rec.get("text", ""),
             "p_cheatsheet":  cheatsheet.get(idx, []),
             "p_contrastive": contrastive.get(idx, []),
             "p_multipass":   multipass.get(idx, []),
@@ -88,7 +133,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input",  default="trajectories_with_questions_58k.jsonl")
     parser.add_argument("--outdir", default="outputs")
-    parser.add_argument("--repo",   default="narabzad/t3-rag-hints")
+    parser.add_argument("--repo",   default="narabzad/t3-rag")
     parser.add_argument("--push",   action="store_true", help="Push to HuggingFace Hub")
     args = parser.parse_args()
 
@@ -98,9 +143,14 @@ def main():
     print(f"Building dataset from {input_path} + {outdir}/p_*.jsonl …")
     ds = build(input_path, outdir)
 
+    # Quick sanity check
+    n_with_answer = sum(1 for r in ds if r["answer"])
     print(f"\nDataset: {ds}")
-    print(f"Features: {ds.features}")
-    print(f"\nFirst example:")
+    print(f"Records with non-empty answer: {n_with_answer}/{len(ds)} "
+          f"({100*n_with_answer/len(ds):.1f}%)")
+    print(f"(Remaining are proof/open-ended problems without a single answer)\n")
+
+    print("First example:")
     ex = ds[0]
     for k, v in ex.items():
         if isinstance(v, list):
