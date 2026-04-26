@@ -7,3 +7,4 @@ __pycache__/
 lm_eval_cache/
 logs/
 *.log
+results/
