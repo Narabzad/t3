@@ -20,11 +20,11 @@ RAG is widely believed to offer limited benefit for reasoning-intensive tasks li
 
 ### T3 Transformations
 
-| Name | Paper tag | Description |
-|------|-----------|-------------|
-| `p_cheatsheet` | Structural Normalization | Rewrites traces into clean step-by-step procedural scaffolds; one trace can produce multiple passages |
-| `p_contrastive` | Reflection | Contrastive form highlighting common mistakes, misleading paths, and how to avoid them |
-| `p_multipass` | Semantic Distillation | Multi-level abstraction; compresses traces to their core reasoning idea |
+| File prefix | Paper name | Description |
+|-------------|------------|-------------|
+| `t3_struct` | Structural Normalization | Rewrites traces into clean step-by-step procedural scaffolds; one trace can produce multiple passages |
+| `t3_reflect` | Reflection | Contrastive form highlighting common mistakes, misleading paths, and how to avoid them |
+| `t3_semantic` | Semantic Distillation | Multi-level abstraction; compresses traces to their core reasoning idea |
 
 ## Repository Structure
 
@@ -45,13 +45,11 @@ t3/
 │   │   ├── gpqa/
 │   │   └── lcb/
 │   └── scripts/
-│       ├── run_single_eval.sh        # Simple one-shot eval runner
-│       ├── run_eval.sh               # Parallel eval runner (MODEL/BENCH/PART env vars)
-│       ├── launch_all.sh             # Launches all 18 eval sessions in screen
+│       ├── run_single_eval.sh        # Eval runner
 │       └── gemini_proxy_server.py    # Proxy server for Gemini API
 └── data_transform/
+    ├── README.md                     # How to apply T3 transformations
     ├── run_all_prompts_gpt.py        # Runs all three T3 transformations
-    ├── create_hf_dataset.py          # Builds and pushes the HuggingFace dataset
     └── prompts/                      # Prompt templates for each transformation
 ```
 
@@ -69,15 +67,12 @@ Each subdirectory under `data/retrieved_results/` corresponds to one corpus+retr
 
 | File prefix | Corpus |
 |-------------|--------|
-| `p_cheatsheet_e5base_full` | T3 Structural Normalization, e5-base, full-doc |
-| `p_contrastive_e5base_full` | T3 Reflection, e5-base, full-doc |
-| `p_multipass_e5base_full` | T3 Semantic Distillation, e5-base, full-doc |
-| `trajectories_qwq32b_e5base_{256,512,full}` | Raw QwQ-32B thinking traces, e5-base |
-| `trajectories_gptoss120b_e5base_{256,512,full}` | Raw GPT-OSS-120B thinking traces, e5-base |
-| `s1k_gemini_thinking_e5base` | S1.1K Gemini-2 thinking traces, e5-base |
-| `s1k_gemini_attempt_e5base` | S1.1K Gemini-2 attempt traces, e5-base |
-| `s1k_deepseek_thinking_e5base` | S1.1K DeepSeek thinking traces, e5-base |
-| `s1k_deepseek_attempt_e5base` | S1.1K DeepSeek attempt traces, e5-base |
+| `t3_struct_e5base_full` | T3 Structural Normalization, e5-base, full-doc |
+| `t3_reflect_e5base_full` | T3 Reflection, e5-base, full-doc |
+| `t3_semantic_e5base_full` | T3 Semantic Distillation, e5-base, full-doc |
+| `trajectories_gemini2thinking_e5base_512` | Raw Gemini-2-thinking traces, e5-base, chunk=512 |
+| `trajectories_qwq32b_e5base_{512,full}` | Raw QwQ-32B thinking traces, e5-base |
+| `trajectories_gptoss120b_e5base_{512,full}` | Raw GPT-OSS-120B thinking traces, e5-base |
 | `s1k_59k_attempt_e5base_{512,full}` | S1K 59K attempt traces, e5-base |
 | `openwebmath_e5base_{512,full}` | OpenWebMath, e5-base |
 | `stackexchange_e5base_{512,full}` | StackExchange, e5-base |
@@ -86,7 +81,6 @@ Each subdirectory under `data/retrieved_results/` corresponds to one corpus+retr
 | `compactds_github_e5base_512` | CompactDS GitHub, e5-base |
 | `compactds_rpj_wiki_e5base_512` | CompactDS RPJ-Wikipedia, e5-base |
 | `searchengine_tavily_decontam` | Live web search results (Tavily, decontaminated) |
-| `searchengine_parallel_decontam` | Parallel search engine results (decontaminated) |
 
 All retrieval uses **top-3** passages.
 
@@ -112,14 +106,14 @@ export OPENROUTER_API_KEY=...
 export GEMINI_API_KEY=...
 ```
 
-### Single run (recommended starting point)
+### Run eval
 
 ```bash
-# With retrieval (T3 cheatsheet on GPQA, GPT-5)
+# With retrieval
 bash eval/scripts/run_single_eval.sh \
     --model gpt5 \
     --bench gpqa \
-    --retrieval data/retrieved_results/gpqa/p_cheatsheet_e5base_full.jsonl
+    --retrieval data/retrieved_results/gpqa/t3_struct_e5base_full.jsonl
 
 # No-RAG baseline
 bash eval/scripts/run_single_eval.sh \
@@ -131,22 +125,12 @@ bash eval/scripts/run_single_eval.sh \
 bash eval/scripts/run_single_eval.sh \
     --model gemini \
     --bench lcb \
-    --retrieval data/retrieved_results/lcb_v4/p_cheatsheet_e5base_full.jsonl
+    --retrieval data/retrieved_results/lcb_v4/t3_reflect_e5base_full.jsonl
 ```
 
 - `--model`: `gpt5` | `gemini` | `oss120b`
 - `--bench`: `aime` | `lcb` | `gpqa`
 - `--retrieval FILE` or `--no-rag`
-
-### Parallel runs (all corpora)
-
-```bash
-cd eval/scripts
-MODEL=gpt5 BENCH=aime PART=1 bash run_eval.sh
-```
-
-- `PART`: `1` (first half of files) | `2` (second half)
-- `POOL`: parallelism (default 10, auto-reduces on rate limits)
 
 ## Data Format
 
@@ -156,20 +140,7 @@ MODEL=gpt5 BENCH=aime PART=1 bash run_eval.sh
 
 ## T3 Transformation Code
 
-`data_transform/` contains scripts to reproduce the T3 transformations from raw reasoning traces:
-
-```bash
-pip install openai tqdm
-
-python data_transform/run_all_prompts_gpt.py \
-    --input  trajectories_with_questions_58k.jsonl \
-    --outdir outputs/ \
-    --prompts p_cheatsheet p_contrastive p_multipass \
-    --model  gpt-5-nano \
-    --concurrency 50
-```
-
-The script is resume-safe: re-running picks up where it left off.
+See [`data_transform/README.md`](data_transform/README.md) for how to apply T3 transformations to your own thinking traces.
 
 ## HuggingFace Dataset
 
@@ -179,14 +150,5 @@ The full dataset (58,071 trajectories with all three T3 transformations) is on H
 from datasets import load_dataset
 ds = load_dataset("narabzad/t3-rag")
 # Columns: question, answer, subject, level, cot_type,
-#          trace, p_cheatsheet (list), p_contrastive (list), p_multipass (list)
-```
-
-To rebuild and re-push from local files:
-```bash
-cd data_transform
-HF_TOKEN=<your_token> python create_hf_dataset.py \
-    --input ../trajectories_with_questions_58k.jsonl \
-    --outdir ../outputs/ \
-    --push
+#          trace, t3_struct (list), t3_reflect (list), t3_semantic (list)
 ```
