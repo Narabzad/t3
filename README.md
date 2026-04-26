@@ -38,7 +38,7 @@ t3/
 │   └── retrieved_results/            # Top-3 retrieved passages per question per method
 │       ├── aime_2025_2026/           # AIME 2025 & 2026 (60 problems)
 │       ├── gpqa/                     # GPQA Diamond (198 problems)
-│       └── lcb_v4/                   # LiveCodeBench v4 (~120 problems)
+│       └── lcb_v4/                   # LiveCodeBench v4 (202 problems)
 ├── eval/
 │   ├── tasks/                        # lm-evaluation-harness task configs
 │   │   ├── aime/
@@ -61,7 +61,7 @@ t3/
 |-----------|-------------|----------|--------------|
 | AIME 2025–2026 | AMC/AIME math competitions | 60 total | 8 samples/question (agg@8) |
 | GPQA Diamond | Graduate-level science questions | 198 | 4 samples/question (agg@4) |
-| LiveCodeBench v4 | Competitive programming (2024-04 → 2024-09) | ~120 | 4 samples/question (agg@4) |
+| LiveCodeBench v4 | Competitive programming (2024-04 → 2024-09) | 202 | 4 samples/question (agg@4) |
 
 ## Retrieval Corpora
 
