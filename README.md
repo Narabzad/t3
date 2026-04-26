@@ -16,7 +16,7 @@ RAG is widely believed to offer limited benefit for reasoning-intensive tasks li
 
 **Offline:** A strong reasoning model (e.g., Gemini-2-thinking, QwQ-32B) solves an auxiliary problem set and produces raw thinking traces. A smaller model (e.g., Gemini-2-Flash-Lite) then rewrites them into structured retrieval-friendly forms using T3.
 
-**At inference time:** A new query is matched against this corpus. The top-3 retrieved passages are prepended to the prompt, and the solver model generates an answer — no fine-tuning required.
+**At inference time:** A previously unseen query is retrieved against this corpus; the top-*k* passages (e.g., k=3) are returned and used as context to perform RAG, enabling a downstream solver model to generate the final answer — no training or fine-tuning required.
 
 ### T3 Transformations
 
@@ -35,18 +35,18 @@ t3/
 │   │   ├── aime_2025_2026_queries.jsonl
 │   │   ├── gpqa_queries.jsonl
 │   │   └── lcb_v4_minus_v2_queries.jsonl
-│   └── retrieved_results/            # Top-3 retrieved passages per question per method
-│       ├── aime_2025_2026/           # AIME 2025 & 2026 (60 problems)
-│       ├── gpqa/                     # GPQA Diamond (198 problems)
-│       └── lcb_v4/                   # LiveCodeBench v4 (202 problems)
+│   └── traces/
+│       ├── raw/                      # Raw thinking traces (114K OpenThoughts + 59K s1k)
+│       │                             # → HuggingFace: narabzad/t3-traces-*
+│       └── transformed/              # T3-transformed corpora
+│                                     # → HuggingFace: narabzad/t3-struct-*, t3-reflect-*, t3-semantic-*
 ├── eval/
 │   ├── tasks/                        # lm-evaluation-harness task configs
 │   │   ├── aime/
 │   │   ├── gpqa/
 │   │   └── lcb/
 │   └── scripts/
-│       ├── run_single_eval.sh        # Eval runner
-│       └── gemini_proxy_server.py    # Proxy server for Gemini API
+│       └── run_single_eval.sh        # Eval runner (all models via OpenRouter)
 └── data_transform/
     ├── README.md                     # How to apply T3 transformations
     ├── run_all_prompts_gpt.py        # Runs all three T3 transformations
@@ -63,15 +63,15 @@ t3/
 
 ## HuggingFace Datasets
 
-All datasets are published on HuggingFace under [narabzad](https://huggingface.co/narabzad).
+All datasets are published on [HuggingFace](https://huggingface.co/narabzad).
 
 ### Raw Thinking Traces
 
-| Dataset | Model | Traces | Description |
-|---------|-------|--------|-------------|
-| [t3-traces-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-traces-gemini2thinking) | Gemini-2-thinking | 58K | Raw thinking traces on s1k 59K math corpus |
-| [t3-traces-gptoss120b](https://huggingface.co/datasets/narabzad/t3-traces-gptoss120b) | GPT-OSS-120B | 58K | Raw thinking traces on s1k 59K math corpus |
-| [t3-traces-qwq32b](https://huggingface.co/datasets/narabzad/t3-traces-qwq32b) | QwQ-32B | 57K | Raw thinking traces on s1k 59K math corpus |
+| Dataset | Model | Description |
+|---------|-------|-------------|
+| [t3-traces-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-traces-gemini2thinking) | Gemini-2-thinking | Raw thinking traces on s1k 59K math corpus |
+| [t3-traces-gptoss120b](https://huggingface.co/datasets/narabzad/t3-traces-gptoss120b) | GPT-OSS-120B | Raw thinking traces on s1k 59K math corpus |
+| [t3-traces-qwq32b](https://huggingface.co/datasets/narabzad/t3-traces-qwq32b) | QwQ-32B | Raw thinking traces on s1k 59K math corpus |
 
 Each dataset has columns: `question`, `trace`.
 
@@ -86,7 +86,7 @@ Each dataset has columns: `question`, `trace`.
 | [t3-reflect-qwq32b](https://huggingface.co/datasets/narabzad/t3-reflect-qwq32b) | Reflection | OpenThoughts QwQ-32B 114K | 114K |
 | [t3-semantic-qwq32b](https://huggingface.co/datasets/narabzad/t3-semantic-qwq32b) | Semantic Distillation | OpenThoughts QwQ-32B 114K | 114K |
 
-Each dataset has columns: `question`, `trace` (original), `passages` (list of transformed passages).
+Each dataset has columns: `question`, `trace` (original), `transformed_traces` (list of transformed passages).
 
 ```python
 from datasets import load_dataset
@@ -97,7 +97,7 @@ ds = load_dataset("narabzad/t3-traces-gemini2thinking")
 
 # T3-transformed passages
 ds = load_dataset("narabzad/t3-struct-gemini2thinking")
-# Columns: question, trace, passages (list)
+# Columns: question, trace, transformed_traces (list)
 ```
 
 ## Retrieved Results
