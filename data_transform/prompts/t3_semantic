@@ -1,32 +1,23 @@
-You are an expert at progressively compressing mathematical reasoning traces into multiple levels of abstraction.
+Compress the reasoning trace into progressively more abstract representations.
 
-Your task is to read the reasoning trace below and produce a SINGLE passage that contains three levels of distillation. All three levels live in one passage so the reader has full context — from detailed solution to core insight — in one place.
+Guidelines:
+- Provide three levels of abstraction.
+- Pass 1: structured outline of reasoning steps.
+- Pass 2: only key decisions or moves.
+- Pass 3: a single core insight.
+- Ensure consistency across all passes.
+- Avoid redundancy.
 
-<trace>
-{trace}
-</trace>
+Output format:
 
-Output a single passage with the following structure:
+Problem: ...
 
-**Problem:** [Restate the problem precisely in one or two sentences.]
+Pass 1: ...
 
-**Pass 1 — Full Solution Outline (5–8 lines):**
-Write a complete but compressed walkthrough of the solution. Include every non-trivial step in order. Use concrete mathematical language and LaTeX. This should be enough for a competent mathematician to reconstruct the full solution without the original trace.
+Pass 2: ...
 
-**Pass 2 — Core Moves Only (exactly 3 bullets):**
-Each bullet is one essential move — the minimum set of actions that characterizes this solution. If you removed any one bullet, the solution would be incomplete or wrong. No motivation, no elaboration — just the move.
-• [Move 1]
-• [Move 2]
-• [Move 3]
+Pass 3: ...
 
-**Pass 3 — Single Insight (1 sentence):**
-The one sentence that captures the entire solution's key idea. Someone reading only this should understand what makes this problem tractable and what the decisive step is.
+Answer: $\boxed{[final answer]}$
 
-**Answer:** $\boxed{[final answer]}$ or the strongest conclusion if no explicit answer is given.
-
-RULES:
-- This is ONE passage — do not use [PASSAGE] separators.
-- Each pass must be strictly more compressed than the previous — no repeating content verbatim.
-- Pass 1 must be dense but readable. Pass 2 must be terse. Pass 3 must be a single, complete sentence.
-- Remove all false starts, failed attempts, and redundant reasoning from the trace.
-- The passage must be self-contained: a reader who has not seen the trace should be able to understand the problem and the full solution path.
+Given trace: {trace}

@@ -119,112 +119,96 @@ All retrieval uses **top-3** passages.
 | Gemini 2.5 Flash | Google |
 | GPT-OSS-120B (DeepInfra BF16) | OpenRouter |
 
-## Running Evaluations
+## RAG Pipeline & Evaluation
 
 ### Prerequisites
 
 ```bash
 # Install lm-evaluation-harness
-pip install -e git+https://github.com/EleutherAI/lm-evaluation-harness#egg=lm-eval
+pip install lm-eval
 
-# Set API keys
-export OPENAI_API_KEY=...
-export OPENROUTER_API_KEY=...
-export GEMINI_API_KEY=...
+# Set API key (all evals run via OpenRouter)
+export OPENROUTER_API_KEY=your_key_here
 ```
 
-### Run eval
+### Option A — Use pre-computed retrieved results
+
+Pre-computed top-3 passages are in `data/retrieved_results/`. Pick a benchmark, a corpus, and run:
 
 ```bash
-# With retrieval
-bash eval/scripts/run_single_eval.sh \
-    --model gpt5 \
-    --bench gpqa \
-    --retrieval data/retrieved_results/gpqa/t3_struct_e5base_full.jsonl
-
-# No-RAG baseline
-bash eval/scripts/run_single_eval.sh \
-    --model gpt5 \
+# AIME with T3-Structural Normalization corpus
+bash eval/scripts/run_eval.sh \
+    --model qwen/qwq-32b \
     --bench aime \
-    --no-rag
+    --retrieval data/retrieved_results/aime_2025_2026/t3_struct_e5base_full.jsonl
 
-# Gemini with retrieval
-bash eval/scripts/run_single_eval.sh \
-    --model gemini \
+# GPQA with raw Gemini-2-thinking traces
+bash eval/scripts/run_eval.sh \
+    --model openai/gpt-4o \
+    --bench gpqa \
+    --retrieval data/retrieved_results/gpqa/trajectories_gemini2thinking_e5base_512.jsonl
+
+# LiveCodeBench with T3-Reflection corpus
+bash eval/scripts/run_eval.sh \
+    --model google/gemini-2.5-flash \
     --bench lcb \
     --retrieval data/retrieved_results/lcb_v4/t3_reflect_e5base_full.jsonl
+
+# No-RAG baseline
+bash eval/scripts/run_eval.sh \
+    --model qwen/qwq-32b \
+    --bench aime \
+    --no-rag
 ```
 
-- `--model`: `gpt5` | `gemini` | `oss120b`
-- `--bench`: `aime` | `lcb` | `gpqa`
-- `--retrieval FILE` or `--no-rag`
+`--bench` loads the corresponding task YAML from `eval/tasks/{aime,gpqa,lcb}/` automatically.
+`--model` accepts any [OpenRouter model ID](https://openrouter.ai/models).
+Results are saved under `results/{bench}/{model}/{label}/`.
 
-## RAG Pipeline
-
-You can run the full retrieve-then-generate pipeline on your own questions using any of the HuggingFace datasets above as the retrieval corpus.
-
-### 1. Retrieve passages
+### Option B — Build your own retriever from HuggingFace
 
 ```python
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
-import faiss, numpy as np
+import faiss
+import numpy as np
 
-# Load a T3 corpus
+# Load any T3 corpus from HuggingFace
 corpus = load_dataset("narabzad/t3-struct-gemini2thinking", split="train")
-docs   = [p for row in corpus for p in row["passages"]]
+docs   = [p for row in corpus for p in row["transformed_traces"]]
 
-# Build FAISS index
-model = SentenceTransformer("intfloat/e5-base-v2")
-vecs  = model.encode([f"passage: {d}" for d in docs], batch_size=256, show_progress_bar=True)
-index = faiss.IndexFlatIP(vecs.shape[1])
+# Build FAISS index with e5-base
+encoder = SentenceTransformer("intfloat/e5-base-v2")
+vecs    = encoder.encode([f"passage: {d}" for d in docs], batch_size=256, show_progress_bar=True)
 faiss.normalize_L2(vecs)
+index   = faiss.IndexFlatIP(vecs.shape[1])
 index.add(vecs)
 
 def retrieve(query: str, top_k: int = 3) -> list[str]:
-    q_vec = model.encode([f"query: {query}"])
+    q_vec = encoder.encode([f"query: {query}"])
     faiss.normalize_L2(q_vec)
     _, ids = index.search(q_vec, top_k)
     return [docs[i] for i in ids[0]]
 ```
 
-### 2. Generate with retrieved context
+Then generate with any model via OpenRouter:
 
 ```python
-# ── OpenAI ──────────────────────────────────────────────────────────────────
 from openai import OpenAI
-client = OpenAI()  # uses OPENAI_API_KEY
 
-def rag_openai(question: str, model: str = "gpt-4o") -> str:
-    ctx = "\n\n".join(retrieve(question))
-    prompt = f"Use the following examples to help solve the problem.\n\n{ctx}\n\nProblem: {question}"
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return resp.choices[0].message.content
-
-# ── Google Gemini ────────────────────────────────────────────────────────────
-import google.generativeai as genai
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-
-def rag_gemini(question: str, model: str = "gemini-2.5-flash") -> str:
-    ctx = "\n\n".join(retrieve(question))
-    prompt = f"Use the following examples to help solve the problem.\n\n{ctx}\n\nProblem: {question}"
-    resp = genai.GenerativeModel(model).generate_content(prompt)
-    return resp.text
-
-# ── OpenRouter (open-source models) ─────────────────────────────────────────
-from openai import OpenAI as OpenRouterClient
-router = OpenRouterClient(
+client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=os.environ["OPENROUTER_API_KEY"],
 )
 
-def rag_openrouter(question: str, model: str = "qwen/qwq-32b") -> str:
-    ctx = "\n\n".join(retrieve(question))
-    prompt = f"Use the following examples to help solve the problem.\n\n{ctx}\n\nProblem: {question}"
-    resp = router.chat.completions.create(
+def rag(question: str, model: str = "qwen/qwq-32b") -> str:
+    examples = retrieve(question)
+    prompt = (
+        "Use the following examples to help solve the problem.\n\n"
+        + "\n\n".join(f"Example {i+1}: {ex}" for i, ex in enumerate(examples))
+        + f"\n\nMain problem: {question}"
+    )
+    resp = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
     )

@@ -5,7 +5,7 @@ task: lcb_v4mv2_agg1
 dataset_path: json
 dataset_kwargs:
   data_files:
-    test: /future/u/negara/home/private-retrieval-lm/s1/s1/eval/lm-evaluation-harness/lm_eval/tasks/lcb/lcb_v4_minus_v2_data.jsonl
+    test: lcb_v4_minus_v2_data.jsonl
 test_split: test
 process_docs: !function utils.process_docs
 output_type: generate_until
