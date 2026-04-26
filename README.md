@@ -1,7 +1,7 @@
 # T3: Transformation of Thinking Traces
 
 <p align="center">
-  <a href="https://huggingface.co/datasets/narabzad/t3-rag"><img src="https://img.shields.io/badge/🤗%20Dataset-narabzad/t3--rag-yellow" alt="HuggingFace Dataset"></a>
+  <a href="https://huggingface.co/narabzad"><img src="https://img.shields.io/badge/🤗%20Datasets-narabzad-yellow" alt="HuggingFace Datasets"></a>
   &nbsp;
   <a href="#"><img src="https://img.shields.io/badge/📄%20Paper-coming%20soon-lightgrey" alt="Paper"></a>
 </p>
@@ -61,9 +61,48 @@ t3/
 | GPQA Diamond | Graduate-level science questions | 198 | 4 samples/question (agg@4) |
 | LiveCodeBench v4 | Competitive programming (2024-04 → 2024-09) | 202 | 4 samples/question (agg@4) |
 
-## Retrieval Corpora
+## HuggingFace Datasets
 
-Each subdirectory under `data/retrieved_results/` corresponds to one corpus+retriever combination:
+All datasets are published on HuggingFace under [narabzad](https://huggingface.co/narabzad).
+
+### Raw Thinking Traces
+
+| Dataset | Model | Traces | Description |
+|---------|-------|--------|-------------|
+| [t3-traces-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-traces-gemini2thinking) | Gemini-2-thinking | 58K | Raw thinking traces on s1k 59K math corpus |
+| [t3-traces-gptoss120b](https://huggingface.co/datasets/narabzad/t3-traces-gptoss120b) | GPT-OSS-120B | 58K | Raw thinking traces on s1k 59K math corpus |
+| [t3-traces-qwq32b](https://huggingface.co/datasets/narabzad/t3-traces-qwq32b) | QwQ-32B | 57K | Raw thinking traces on s1k 59K math corpus |
+
+Each dataset has columns: `question`, `trace`.
+
+### T3-Transformed Corpora
+
+| Dataset | Transformation | Source | Passages |
+|---------|---------------|--------|----------|
+| [t3-struct-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-struct-gemini2thinking) | Structural Normalization | Gemini-2-thinking 58K | 78K |
+| [t3-reflect-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-reflect-gemini2thinking) | Reflection | Gemini-2-thinking 58K | 58K |
+| [t3-semantic-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-semantic-gemini2thinking) | Semantic Distillation | Gemini-2-thinking 58K | 58K |
+| [t3-struct-qwq32b](https://huggingface.co/datasets/narabzad/t3-struct-qwq32b) | Structural Normalization | OpenThoughts QwQ-32B 114K | 155K |
+| [t3-reflect-qwq32b](https://huggingface.co/datasets/narabzad/t3-reflect-qwq32b) | Reflection | OpenThoughts QwQ-32B 114K | 114K |
+| [t3-semantic-qwq32b](https://huggingface.co/datasets/narabzad/t3-semantic-qwq32b) | Semantic Distillation | OpenThoughts QwQ-32B 114K | 114K |
+
+Each dataset has columns: `question`, `trace` (original), `passages` (list of transformed passages).
+
+```python
+from datasets import load_dataset
+
+# Raw thinking traces
+ds = load_dataset("narabzad/t3-traces-gemini2thinking")
+# Columns: question, trace
+
+# T3-transformed passages
+ds = load_dataset("narabzad/t3-struct-gemini2thinking")
+# Columns: question, trace, passages (list)
+```
+
+## Retrieved Results
+
+Pre-computed top-3 retrieved passages for each benchmark question are in `data/retrieved_results/`.
 
 | File prefix | Corpus |
 |-------------|--------|
@@ -73,14 +112,6 @@ Each subdirectory under `data/retrieved_results/` corresponds to one corpus+retr
 | `trajectories_gemini2thinking_e5base_512` | Raw Gemini-2-thinking traces, e5-base, chunk=512 |
 | `trajectories_qwq32b_e5base_{512,full}` | Raw QwQ-32B thinking traces, e5-base |
 | `trajectories_gptoss120b_e5base_{512,full}` | Raw GPT-OSS-120B thinking traces, e5-base |
-| `s1k_59k_attempt_e5base_{512,full}` | S1K 59K attempt traces, e5-base |
-| `openwebmath_e5base_{512,full}` | OpenWebMath, e5-base |
-| `stackexchange_e5base_{512,full}` | StackExchange, e5-base |
-| `compactds_arxiv_e5base_512` | CompactDS arXiv subset, e5-base, chunk=512 |
-| `compactds_dpr_wiki_e5base_512` | CompactDS DPR-Wikipedia, e5-base |
-| `compactds_github_e5base_512` | CompactDS GitHub, e5-base |
-| `compactds_rpj_wiki_e5base_512` | CompactDS RPJ-Wikipedia, e5-base |
-| `searchengine_tavily_decontam` | Live web search results (Tavily, decontaminated) |
 
 All retrieval uses **top-3** passages.
 
@@ -132,6 +163,78 @@ bash eval/scripts/run_single_eval.sh \
 - `--bench`: `aime` | `lcb` | `gpqa`
 - `--retrieval FILE` or `--no-rag`
 
+## RAG Pipeline
+
+You can run the full retrieve-then-generate pipeline on your own questions using any of the HuggingFace datasets above as the retrieval corpus.
+
+### 1. Retrieve passages
+
+```python
+from datasets import load_dataset
+from sentence_transformers import SentenceTransformer
+import faiss, numpy as np
+
+# Load a T3 corpus
+corpus = load_dataset("narabzad/t3-struct-gemini2thinking", split="train")
+docs   = [p for row in corpus for p in row["passages"]]
+
+# Build FAISS index
+model = SentenceTransformer("intfloat/e5-base-v2")
+vecs  = model.encode([f"passage: {d}" for d in docs], batch_size=256, show_progress_bar=True)
+index = faiss.IndexFlatIP(vecs.shape[1])
+faiss.normalize_L2(vecs)
+index.add(vecs)
+
+def retrieve(query: str, top_k: int = 3) -> list[str]:
+    q_vec = model.encode([f"query: {query}"])
+    faiss.normalize_L2(q_vec)
+    _, ids = index.search(q_vec, top_k)
+    return [docs[i] for i in ids[0]]
+```
+
+### 2. Generate with retrieved context
+
+```python
+# ── OpenAI ──────────────────────────────────────────────────────────────────
+from openai import OpenAI
+client = OpenAI()  # uses OPENAI_API_KEY
+
+def rag_openai(question: str, model: str = "gpt-4o") -> str:
+    ctx = "\n\n".join(retrieve(question))
+    prompt = f"Use the following examples to help solve the problem.\n\n{ctx}\n\nProblem: {question}"
+    resp = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return resp.choices[0].message.content
+
+# ── Google Gemini ────────────────────────────────────────────────────────────
+import google.generativeai as genai
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+
+def rag_gemini(question: str, model: str = "gemini-2.5-flash") -> str:
+    ctx = "\n\n".join(retrieve(question))
+    prompt = f"Use the following examples to help solve the problem.\n\n{ctx}\n\nProblem: {question}"
+    resp = genai.GenerativeModel(model).generate_content(prompt)
+    return resp.text
+
+# ── OpenRouter (open-source models) ─────────────────────────────────────────
+from openai import OpenAI as OpenRouterClient
+router = OpenRouterClient(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.environ["OPENROUTER_API_KEY"],
+)
+
+def rag_openrouter(question: str, model: str = "qwen/qwq-32b") -> str:
+    ctx = "\n\n".join(retrieve(question))
+    prompt = f"Use the following examples to help solve the problem.\n\n{ctx}\n\nProblem: {question}"
+    resp = router.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return resp.choices[0].message.content
+```
+
 ## Data Format
 
 **Query files** (`.jsonl`): each line has `id`, `problem`, `answer`, `query`.
@@ -142,13 +245,11 @@ bash eval/scripts/run_single_eval.sh \
 
 See [`data_transform/README.md`](data_transform/README.md) for how to apply T3 transformations to your own thinking traces.
 
-## HuggingFace Dataset
-
-The full dataset (58,071 trajectories with all three T3 transformations) is on HuggingFace:
-
-```python
-from datasets import load_dataset
-ds = load_dataset("narabzad/t3-rag")
-# Columns: question, answer, subject, level, cot_type,
-#          trace, t3_struct (list), t3_reflect (list), t3_semantic (list)
+```bash
+python data_transform/run_all_prompts_gpt.py \
+    --input  your_thinking_traces.jsonl \
+    --outdir outputs/ \
+    --prompts t3_struct t3_reflect t3_semantic \
+    --model  gpt-4o-mini \
+    --concurrency 50
 ```
