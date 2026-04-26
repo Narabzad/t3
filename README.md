@@ -1,5 +1,11 @@
 # T3: Thinking-Trace Retrieval for Reasoning Benchmarks
 
+<p align="center">
+  <a href="https://huggingface.co/datasets/narabzad/t3-rag"><img src="https://img.shields.io/badge/🤗%20Dataset-narabzad/t3--rag-yellow" alt="HuggingFace Dataset"></a>
+  &nbsp;
+  <a href="#"><img src="https://img.shields.io/badge/📄%20Paper-coming%20soon-lightgrey" alt="Paper"></a>
+</p>
+
 This repository contains data, retrieval results, evaluation code, and evaluated results for studying retrieval-augmented generation (RAG) on reasoning benchmarks.
 
 ## Repository Structure
