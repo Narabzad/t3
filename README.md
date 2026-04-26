@@ -67,26 +67,22 @@ All datasets are published on [HuggingFace](https://huggingface.co/narabzad).
 
 ### Raw Thinking Traces
 
-| Dataset | Model | Description |
-|---------|-------|-------------|
-| [t3-traces-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-traces-gemini2thinking) | Gemini-2-thinking | Raw thinking traces on s1k 59K math corpus |
-| [t3-traces-gptoss120b](https://huggingface.co/datasets/narabzad/t3-traces-gptoss120b) | GPT-OSS-120B | Raw thinking traces on s1k 59K math corpus |
-| [t3-traces-qwq32b](https://huggingface.co/datasets/narabzad/t3-traces-qwq32b) | QwQ-32B | Raw thinking traces on s1k 59K math corpus |
-
-Each dataset has columns: `question`, `trace`.
+| Dataset | Model | Traces | Columns |
+|---------|-------|--------|---------|
+| [t3-traces-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-traces-gemini2thinking) | Gemini-2-thinking | 58K | `question`, `trace` |
+| [t3-traces-gptoss120b](https://huggingface.co/datasets/narabzad/t3-traces-gptoss120b) | GPT-OSS-120B | 57K | `question`, `trace` |
+| [t3-traces-qwq32b](https://huggingface.co/datasets/narabzad/t3-traces-qwq32b) | QwQ-32B | 57K | `question`, `trace` |
 
 ### T3-Transformed Corpora
 
-| Dataset | Transformation | Source | Passages |
-|---------|---------------|--------|----------|
-| [t3-struct-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-struct-gemini2thinking) | Structural Normalization | Gemini-2-thinking 58K | 78K |
-| [t3-reflect-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-reflect-gemini2thinking) | Reflection | Gemini-2-thinking 58K | 58K |
-| [t3-semantic-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-semantic-gemini2thinking) | Semantic Distillation | Gemini-2-thinking 58K | 58K |
-| [t3-struct-qwq32b](https://huggingface.co/datasets/narabzad/t3-struct-qwq32b) | Structural Normalization | OpenThoughts QwQ-32B 114K | 155K |
-| [t3-reflect-qwq32b](https://huggingface.co/datasets/narabzad/t3-reflect-qwq32b) | Reflection | OpenThoughts QwQ-32B 114K | 114K |
-| [t3-semantic-qwq32b](https://huggingface.co/datasets/narabzad/t3-semantic-qwq32b) | Semantic Distillation | OpenThoughts QwQ-32B 114K | 114K |
-
-Each dataset has columns: `question`, `trace` (original), `transformed_traces` (list of transformed passages).
+| Dataset | Transformation | Source | Passages | Columns |
+|---------|---------------|--------|----------|---------|
+| [t3-struct-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-struct-gemini2thinking) | Structural Normalization | Gemini-2-thinking 58K | 78K | `question`, `trace`, `transformed_traces` |
+| [t3-reflect-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-reflect-gemini2thinking) | Reflection | Gemini-2-thinking 58K | 58K | `question`, `trace`, `transformed_traces` |
+| [t3-semantic-gemini2thinking](https://huggingface.co/datasets/narabzad/t3-semantic-gemini2thinking) | Semantic Distillation | Gemini-2-thinking 58K | 58K | `question`, `trace`, `transformed_traces` |
+| [t3-struct-qwq32b](https://huggingface.co/datasets/narabzad/t3-struct-qwq32b) | Structural Normalization | OpenThoughts QwQ-32B 114K | 155K | `question`, `trace`, `transformed_traces` |
+| [t3-reflect-qwq32b](https://huggingface.co/datasets/narabzad/t3-reflect-qwq32b) | Reflection | OpenThoughts QwQ-32B 114K | 114K | `question`, `trace`, `transformed_traces` |
+| [t3-semantic-qwq32b](https://huggingface.co/datasets/narabzad/t3-semantic-qwq32b) | Semantic Distillation | OpenThoughts QwQ-32B 114K | 114K | `question`, `trace`, `transformed_traces` |
 
 ```python
 from datasets import load_dataset
