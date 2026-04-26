@@ -1,5 +1,5 @@
 """
-Run all prompts on a JSONL file efficiently using OpenAI GPT models.
+Apply T3 transformations to a JSONL file of thinking traces using OpenAI GPT models.
 - Records loaded once
 - All API calls share a single semaphore (one rate limit pool)
 - One live tqdm bar per prompt so you can watch all progress simultaneously
@@ -7,11 +7,11 @@ Run all prompts on a JSONL file efficiently using OpenAI GPT models.
 
 Usage:
     python run_all_prompts_gpt.py \
-        --input  /path/to/trajectories.jsonl \
-        --outdir /path/to/outputs/ \
-        [--prompts p_summary p_cheatsheet p_multipass p_concept_strategy p_query_reasoning p_contrastive] \
-        [--model  gpt-5-nano] \
-        [--concurrency 50]
+        --input  your_thinking_traces.jsonl \
+        --outdir outputs/ \
+        --prompts t3_struct t3_reflect t3_semantic \
+        --model  gpt-4o-mini \
+        --concurrency 50
 
 Set OPENAI_API_KEY env var or pass --api-key.
 """
@@ -28,12 +28,9 @@ from tqdm import tqdm
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 ALL_PROMPTS = [
-    "p_summary",
-    "p_cheatsheet",
-    "p_multipass",
-    "p_concept_strategy",
-    "p_query_reasoning",
-    "p_contrastive",
+    "t3_struct",
+    "t3_reflect",
+    "t3_semantic",
 ]
 PASSAGE_SEP = "[PASSAGE]"
 
