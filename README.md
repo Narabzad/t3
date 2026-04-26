@@ -1,4 +1,4 @@
-# T3: Thinking-Trace Retrieval for Reasoning Benchmarks
+# T3: Transformation of Thinking Traces
 
 <p align="center">
   <a href="https://huggingface.co/datasets/narabzad/t3-rag"><img src="https://img.shields.io/badge/🤗%20Dataset-narabzad/t3--rag-yellow" alt="HuggingFace Dataset"></a>
@@ -6,7 +6,23 @@
   <a href="#"><img src="https://img.shields.io/badge/📄%20Paper-coming%20soon-lightgrey" alt="Paper"></a>
 </p>
 
-This repository contains data, retrieval results, evaluation code, and evaluated results for studying retrieval-augmented generation (RAG) on reasoning benchmarks.
+RAG is widely believed to offer limited benefit for reasoning-intensive tasks like math and code. We challenge this assumption: **the limitation is the corpus, not the approach**. We show that retrieving *thinking traces* — intermediate reasoning trajectories from strong models — consistently improves performance across frontier models and benchmarks. We further introduce **T3**, an offline method that transforms raw traces into structured, retrieval-friendly representations, unlocking even stronger gains.
+
+> **Key results on AIME 2025–2026:** RAG with Gemini-2-thinking traces improves Gemini-2.5-Flash by +50.1%, GPT-OSS-120B by +8.6%, and GPT-5 by +5.8%. T3 transformations also reduce inference cost by up to 15%.
+
+## How It Works
+
+**Offline:** A strong reasoning model (e.g., Gemini-2-thinking, QwQ-32B) solves an auxiliary problem set and produces raw thinking traces. A smaller model (e.g., Gemini-2-Flash-Lite) then rewrites them into structured retrieval-friendly forms using T3.
+
+**At inference time:** A new query is matched against this corpus. The top-3 retrieved passages are prepended to the prompt, and the solver model generates an answer — no fine-tuning required.
+
+### T3 Transformations
+
+| Name | Paper tag | Description |
+|------|-----------|-------------|
+| `p_cheatsheet` | Structural Normalization | Rewrites traces into clean step-by-step procedural scaffolds; one trace can produce multiple passages |
+| `p_contrastive` | Reflection | Contrastive form highlighting common mistakes, misleading paths, and how to avoid them |
+| `p_multipass` | Semantic Distillation | Multi-level abstraction; compresses traces to their core reasoning idea |
 
 ## Repository Structure
 
@@ -19,69 +35,66 @@ t3/
 │   │   └── lcb_v4_minus_v2_queries.jsonl
 │   └── retrieved_results/            # Top-3 retrieved passages per question per method
 │       ├── aime_2025_2026/           # AIME 2025 & 2026 (60 problems)
-│       ├── gpqa/                     # GPQA Diamond
-│       └── lcb_v4/                   # LiveCodeBench v4
+│       ├── gpqa/                     # GPQA Diamond (198 problems)
+│       └── lcb_v4/                   # LiveCodeBench v4 (~120 problems)
 ├── eval/
 │   ├── tasks/                        # lm-evaluation-harness task configs
 │   │   ├── aime/
 │   │   ├── gpqa/
 │   │   └── lcb/
 │   └── scripts/
-│       ├── run_eval.sh               # Main eval runner (MODEL/BENCH/PART env vars)
+│       ├── run_single_eval.sh        # Simple one-shot eval runner
+│       ├── run_eval.sh               # Parallel eval runner (MODEL/BENCH/PART env vars)
 │       ├── launch_all.sh             # Launches all 18 eval sessions in screen
 │       └── gemini_proxy_server.py    # Proxy server for Gemini API
-└── results/
-    ├── aime_2025/
-    │   ├── no_retrieval/             # Baseline (no retrieved context)
-    │   └── with_retrieval/           # RAG results per method
-    ├── aime_2026/
-    ├── gpqa/
-    └── lcb/
+└── data_transform/
+    ├── run_all_prompts_gpt.py        # Runs all three T3 transformations
+    ├── create_hf_dataset.py          # Builds and pushes the HuggingFace dataset
+    └── prompts/                      # Prompt templates for each transformation
 ```
 
 ## Benchmarks
 
 | Benchmark | Description | Problems | Eval setting |
 |-----------|-------------|----------|--------------|
-| AIME 2025-2026 | AMC/AIME math competitions | 60 total | 8 samples/question (agg@8) |
+| AIME 2025–2026 | AMC/AIME math competitions | 60 total | 8 samples/question (agg@8) |
 | GPQA Diamond | Graduate-level science questions | 198 | 4 samples/question (agg@4) |
 | LiveCodeBench v4 | Competitive programming (2024-04 → 2024-09) | ~120 | 4 samples/question (agg@4) |
 
-## Retrieval Methods
+## Retrieval Corpora
 
-Each method name in `data/retrieved_results/` encodes the corpus and retriever:
+Each subdirectory under `data/retrieved_results/` corresponds to one corpus+retriever combination:
 
-| Prefix | Corpus |
-|--------|--------|
+| File prefix | Corpus |
+|-------------|--------|
+| `p_cheatsheet_e5base_full` | T3 Structural Normalization, e5-base, full-doc |
+| `p_contrastive_e5base_full` | T3 Reflection, e5-base, full-doc |
+| `p_multipass_e5base_full` | T3 Semantic Distillation, e5-base, full-doc |
+| `trajectories_qwq32b_e5base_{256,512,full}` | Raw QwQ-32B thinking traces, e5-base |
+| `trajectories_gptoss120b_e5base_{256,512,full}` | Raw GPT-OSS-120B thinking traces, e5-base |
+| `s1k_gemini_thinking_e5base` | S1.1K Gemini-2 thinking traces, e5-base |
+| `s1k_gemini_attempt_e5base` | S1.1K Gemini-2 attempt traces, e5-base |
+| `s1k_deepseek_thinking_e5base` | S1.1K DeepSeek thinking traces, e5-base |
+| `s1k_deepseek_attempt_e5base` | S1.1K DeepSeek attempt traces, e5-base |
+| `s1k_59k_attempt_e5base_{512,full}` | S1K 59K attempt traces, e5-base |
+| `openwebmath_e5base_{512,full}` | OpenWebMath, e5-base |
+| `stackexchange_e5base_{512,full}` | StackExchange, e5-base |
 | `compactds_arxiv_e5base_512` | CompactDS arXiv subset, e5-base, chunk=512 |
-| `compactds_dpr_wiki_e5base_512` | CompactDS DPR-Wikipedia, e5-base, chunk=512 |
-| `compactds_github_e5base_512` | CompactDS GitHub, e5-base, chunk=512 |
-| `compactds_rpj_wiki_e5base_512` | CompactDS RPJ-Wikipedia, e5-base, chunk=512 |
-| `openwebmath_e5base_512/full` | OpenWebMath, e5-base, chunk=512 or full |
-| `stackexchange_e5base_512/full` | StackExchange, e5-base, chunk=512 or full |
-| `s1k_59k_attempt_e5base_512/full` | S1K 59K attempt traces, e5-base |
-| `s1k_deepseek_attempt/thinking_e5base` | S1.1K DeepSeek attempt/thinking traces, e5-base |
-| `s1k_gemini_attempt/thinking_e5base` | S1.1K Gemini attempt/thinking traces, e5-base |
-| `searchengine_parallel/tavily_decontam` | Live search engine results (decontaminated) |
-| `p_cheatsheet/contrastive/multipass_e5base_full` | Prompt-augmented retrieval variants |
-| `trajectories_qwq32b_e5base_256/512/full` | QwQ-32B reasoning traces, e5-base |
-| `trajectories_gptoss120b_e5base_256/512/full` | GPT-OSS-120B reasoning traces, e5-base |
+| `compactds_dpr_wiki_e5base_512` | CompactDS DPR-Wikipedia, e5-base |
+| `compactds_github_e5base_512` | CompactDS GitHub, e5-base |
+| `compactds_rpj_wiki_e5base_512` | CompactDS RPJ-Wikipedia, e5-base |
+| `searchengine_tavily_decontam` | Live web search results (Tavily, decontaminated) |
+| `searchengine_parallel_decontam` | Parallel search engine results (decontaminated) |
 
 All retrieval uses **top-3** passages.
 
 ## Models Evaluated
 
-| Model | Provider | Name in results/ |
-|-------|----------|-----------------|
-| GPT-5 (2025-08-07) | OpenAI | `gpt5` |
-| Gemini 2.5 Flash | Google | `gemini-2.5-flash` |
-| GPT-OSS-120B (DeepInfra BF16) | OpenRouter | `gpt-oss-120b` |
-
-## Results Format
-
-Each `results/json` file is the raw output from lm-evaluation-harness, containing:
-- `results`: metric scores (exact_match, cov@8, maj@8, etc.)
-- `config`: eval configuration (model, temperature, max_gen_toks, etc.)
+| Model | Provider |
+|-------|----------|
+| GPT-5 (2025-08-07) | OpenAI |
+| Gemini 2.5 Flash | Google |
+| GPT-OSS-120B (DeepInfra BF16) | OpenRouter |
 
 ## Running Evaluations
 
@@ -93,89 +106,14 @@ pip install -e git+https://github.com/EleutherAI/lm-evaluation-harness#egg=lm-ev
 
 # Set API keys
 export OPENAI_API_KEY=...
-export LMEVAL_API_KEY=...    # OpenRouter or Gemini
+export OPENROUTER_API_KEY=...
+export GEMINI_API_KEY=...
 ```
 
-### With retrieval
+### Single run (recommended starting point)
 
 ```bash
-cd eval/scripts
-MODEL=gpt5 BENCH=aime PART=1 bash run_eval.sh
-```
-
-- `MODEL`: `gpt5` | `gemini` | `oss120b`
-- `BENCH`: `aime` | `lcb` | `gpqa`
-- `PART`: `1` (first half of files) | `2` (second half)
-- `POOL`: parallelism (default 10, auto-reduces on rate limits)
-
-### Without retrieval
-
-Set `RETRIEVAL_FILE_PATH` to empty or omit; run the non-retrieval task variant (e.g., `aime25_nofigures_agg8`).
-
-## Data Format
-
-Query files (`.jsonl`): each line is a JSON object with fields:
-- `id`: unique question identifier
-- `problem`: question text
-- `answer`: ground-truth answer
-- `query`: retrieval query string
-
-Retrieved results files (`.jsonl`): same fields plus:
-- `ctxs`: list of retrieved passages, each with `id`, `title`, `text`, `score`
-
-## Transformation Code
-
-`data_transform/` contains the scripts to reproduce the `p_cheatsheet`, `p_contrastive`, and `p_multipass` passages from raw reasoning traces:
-
-```bash
-# Install deps
-pip install openai tqdm
-
-# Run all three transformations on a trajectories file
-python data_transform/run_all_prompts_gpt.py \
-    --input  trajectories_with_questions_58k.jsonl \
-    --outdir outputs/ \
-    --prompts p_cheatsheet p_contrastive p_multipass \
-    --model  gpt-5-nano \
-    --concurrency 50
-```
-
-The script is resume-safe: re-running picks up where it left off.
-
-### Prompt descriptions
-
-| Prompt | Description |
-|--------|-------------|
-| `p_cheatsheet` | Step-by-step cheatsheet per solution approach (can produce multiple per trace) |
-| `p_contrastive` | Compares a correct approach with a common mistake |
-| `p_multipass` | Multi-pass structured hint building up solution incrementally |
-
-## HuggingFace Dataset
-
-The full dataset (58,071 trajectories with all three transformations) is on HuggingFace:
-
-```python
-from datasets import load_dataset
-ds = load_dataset("narabzad/t3-rag")
-# Columns: question, answer, subject, level, cot_type,
-#          trace, p_cheatsheet (list), p_contrastive (list), p_multipass (list)
-```
-
-To rebuild and re-push:
-```bash
-cd data_transform
-HF_TOKEN=<your_token> python create_hf_dataset.py \
-    --input ../trajectories_with_questions_58k.jsonl \
-    --outdir ../outputs/ \
-    --push
-```
-
-## Simple Single-Run Eval
-
-`eval/scripts/run_single_eval.sh` runs one benchmark with or without retrieval:
-
-```bash
-# With retrieval
+# With retrieval (T3 cheatsheet on GPQA, GPT-5)
 bash eval/scripts/run_single_eval.sh \
     --model gpt5 \
     --bench gpqa \
@@ -194,4 +132,59 @@ bash eval/scripts/run_single_eval.sh \
     --retrieval data/retrieved_results/lcb_v4/p_cheatsheet_e5base_full.jsonl
 ```
 
-Required env vars: `OPENAI_API_KEY` (gpt5), `OPENROUTER_API_KEY` (oss120b), `GEMINI_API_KEY` (gemini).
+- `--model`: `gpt5` | `gemini` | `oss120b`
+- `--bench`: `aime` | `lcb` | `gpqa`
+- `--retrieval FILE` or `--no-rag`
+
+### Parallel runs (all corpora)
+
+```bash
+cd eval/scripts
+MODEL=gpt5 BENCH=aime PART=1 bash run_eval.sh
+```
+
+- `PART`: `1` (first half of files) | `2` (second half)
+- `POOL`: parallelism (default 10, auto-reduces on rate limits)
+
+## Data Format
+
+**Query files** (`.jsonl`): each line has `id`, `problem`, `answer`, `query`.
+
+**Retrieved results files** (`.jsonl`): same fields plus `ctxs` — a list of top-3 passages, each with `id`, `title`, `text`, `score`.
+
+## T3 Transformation Code
+
+`data_transform/` contains scripts to reproduce the T3 transformations from raw reasoning traces:
+
+```bash
+pip install openai tqdm
+
+python data_transform/run_all_prompts_gpt.py \
+    --input  trajectories_with_questions_58k.jsonl \
+    --outdir outputs/ \
+    --prompts p_cheatsheet p_contrastive p_multipass \
+    --model  gpt-5-nano \
+    --concurrency 50
+```
+
+The script is resume-safe: re-running picks up where it left off.
+
+## HuggingFace Dataset
+
+The full dataset (58,071 trajectories with all three T3 transformations) is on HuggingFace:
+
+```python
+from datasets import load_dataset
+ds = load_dataset("narabzad/t3-rag")
+# Columns: question, answer, subject, level, cot_type,
+#          trace, p_cheatsheet (list), p_contrastive (list), p_multipass (list)
+```
+
+To rebuild and re-push from local files:
+```bash
+cd data_transform
+HF_TOKEN=<your_token> python create_hf_dataset.py \
+    --input ../trajectories_with_questions_58k.jsonl \
+    --outdir ../outputs/ \
+    --push
+```
