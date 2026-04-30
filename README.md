@@ -49,7 +49,7 @@ t3/
 │       └── run_single_eval.sh        # Eval runner (all models via OpenRouter)
 └── data_transform/
     ├── README.md                     # How to apply T3 transformations
-    ├── run_all_prompts_gpt.py        # Runs all three T3 transformations
+    ├── transform.py        # Runs all three T3 transformations
     └── prompts/                      # Prompt templates for each transformation
 ```
 
@@ -226,7 +226,7 @@ def rag(question: str, model: str = "qwen/qwq-32b") -> str:
 See [`data_transform/README.md`](data_transform/README.md) for how to apply T3 transformations to your own thinking traces.
 
 ```bash
-python data_transform/run_all_prompts_gpt.py \
+python data_transform/transform.py \
     --input  your_thinking_traces.jsonl \
     --outdir outputs/ \
     --prompts t3_struct t3_reflect t3_semantic \

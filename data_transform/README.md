@@ -1,6 +1,6 @@
 # T3 Transformation Code
 
-Given a JSONL file of thinking traces, apply any of the three T3 transformations using `run_all_prompts_gpt.py`.
+Given a JSONL file of thinking traces, apply any of the three T3 transformations using `transform.py`.
 
 ## Input format
 
@@ -13,7 +13,7 @@ Each line of the input JSONL must have at least:
 ```bash
 pip install openai tqdm
 
-python run_all_prompts_gpt.py \
+python transform.py \
     --input  your_thinking_traces.jsonl \
     --outdir outputs/ \
     --prompts t3_struct t3_reflect t3_semantic \
