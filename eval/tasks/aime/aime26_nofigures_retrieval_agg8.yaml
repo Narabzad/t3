@@ -1,5 +1,3 @@
-tag:
-  - math_word_problems
 task: aime26_nofigures_retrieval_agg8
 dataset_path: MathArena/aime_2026
 dataset_name: default

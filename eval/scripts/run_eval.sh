@@ -32,9 +32,10 @@ RETRIEVAL_FILE=""
 NO_RAG=0
 OUTPUT_DIR=""
 SEED=2025
+LIMIT=""
 TEMPERATURE="${TEMPERATURE:-0.6}"
 TOP_K="${TOP_K:-3}"
-BASE_URL="${BASE_URL:-https://openrouter.ai/api/v1/chat/completions}"
+BASE_URL="${BASE_URL:-https://openrouter.ai/api/v1}"
 CONCURRENCY="${CONCURRENCY:-8}"
 
 usage() {
@@ -56,6 +57,7 @@ Retrieval (pick one):
 Options:
   --output DIR      Output directory (auto-generated if omitted)
   --seed N          Random seed (default: 2025)
+  --limit N         Limit to first N samples (for smoke testing)
   --base-url URL    API base URL (default: OpenRouter)
 EOF
   exit 1
@@ -69,6 +71,7 @@ while [[ $# -gt 0 ]]; do
     --no-rag)    NO_RAG=1;            shift   ;;
     --output)    OUTPUT_DIR="$2";     shift 2 ;;
     --seed)      SEED="$2";           shift 2 ;;
+    --limit)     LIMIT="$2";          shift 2 ;;
     --base-url)  BASE_URL="$2";       shift 2 ;;
     -h|--help)   usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -140,6 +143,11 @@ if [[ $NO_RAG -eq 0 ]]; then
   RAG_ENV="RETRIEVAL_FILE_PATH=${RETRIEVAL_FILE} RETRIEVAL_TOP_K=${TOP_K} RETRIEVAL_OFFSET=0"
 fi
 
+LIMIT_ARG=""
+if [[ -n "$LIMIT" ]]; then
+  LIMIT_ARG="--limit $LIMIT"
+fi
+
 env LMEVAL_API_KEY="${OR_KEY}" OPENAI_API_KEY="${OR_KEY}" $RAG_ENV \
   python -m lm_eval \
     --model openai-chat-completions \
@@ -147,10 +155,10 @@ env LMEVAL_API_KEY="${OR_KEY}" OPENAI_API_KEY="${OR_KEY}" $RAG_ENV \
     --tasks ${TASKS} \
     --include_path "${INCLUDE}" \
     --batch_size 1 \
-    --apply_chat_template \
     --output_path "${OUTPUT_DIR}" \
     --log_samples \
     --seed "${SEED}" \
+    $LIMIT_ARG \
     --gen_kwargs "max_gen_toks=16384,temperature=${TEMPERATURE}"
 
 echo ""

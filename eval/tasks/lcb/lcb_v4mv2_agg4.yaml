@@ -1,5 +1,3 @@
-tag:
-  - code_generation
 task: lcb_v4mv2_agg4
 dataset_path: json
 dataset_kwargs:

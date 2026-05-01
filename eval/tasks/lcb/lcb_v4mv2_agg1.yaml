@@ -1,5 +1,3 @@
-tag:
-  - code_generation
 task: lcb_v4mv2_agg1
 # Placeholder dataset — actual data loaded from local JSONL in process_docs
 dataset_path: json

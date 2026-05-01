@@ -1,5 +1,4 @@
 dataset_path: Idavidrein/gpqa
-tag: gpqa
 dataset_name: gpqa_diamond
 task: gpqa_diamond_openai_agg1
 output_type: generate_until
