@@ -33,6 +33,7 @@ ALL_PROMPTS = [
     "t3_semantic",
 ]
 PASSAGE_SEP = "[PASSAGE]"
+TRACE_FIELDS = ("trace", "text")
 
 
 def load_prompt(name: str) -> str:
@@ -45,6 +46,20 @@ def load_prompt(name: str) -> str:
 def split_passages(text: str) -> list[str]:
     parts = re.split(r"\[PASSAGE\]", text)
     return [p.strip() for p in parts if p.strip()]
+
+
+def extract_trace(record: dict, idx: int) -> str:
+    for field in TRACE_FIELDS:
+        value = record.get(field)
+        if isinstance(value, str) and value.strip():
+            return value
+
+    accepted = ", ".join(TRACE_FIELDS)
+    raise ValueError(f"Record {idx} must contain a non-empty trace field. Accepted fields: {accepted}")
+
+
+def render_prompt(template: str, record: dict, idx: int) -> str:
+    return template.replace("{trace}", extract_trace(record, idx))
 
 
 async def call_api(client: AsyncOpenAI, model: str, prompt_text: str, semaphore: asyncio.Semaphore, retries: int = 5) -> str:
@@ -85,6 +100,8 @@ async def main():
     records = [json.loads(l) for l in input_path.read_text().splitlines() if l.strip()]
     if args.limit:
         records = records[:args.limit]
+    for idx, record in enumerate(records):
+        extract_trace(record, idx)
     print(f"Loaded {len(records)} records | model={args.model} | concurrency={args.concurrency}")
     print(f"Prompts: {args.prompts}\n")
 
@@ -132,7 +149,7 @@ async def main():
 
     async def process(idx: int, prompt: str):
         record = records[idx]
-        filled = templates[prompt].replace("{trace}", record.get("text", ""))
+        filled = render_prompt(templates[prompt], record, idx)
         raw = await call_api(client, args.model, filled, semaphore)
         passages = split_passages(raw)
 

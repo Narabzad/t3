@@ -4,9 +4,11 @@ Given a JSONL file of thinking traces, apply any of the three T3 transformations
 
 ## Input format
 
-Each line of the input JSONL must have at least:
-- `text` — the thinking trace (raw reasoning trajectory)
-- `question` — the original problem (used for context in the transformation prompt)
+Each line of the input JSONL must include a non-empty thinking trace in one of these fields:
+- `trace` — the published raw-trace field name.
+- `text` — a legacy field name, still accepted for backward compatibility.
+
+Rows may also include `question`, the original problem. It is recommended and preserved in output when present.
 
 ## Usage
 
