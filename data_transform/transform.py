@@ -62,6 +62,12 @@ def render_prompt(template: str, record: dict, idx: int) -> str:
     return template.replace("{trace}", extract_trace(record, idx))
 
 
+def validate_pending_records(records: list[dict], done: dict[str, set[int]], prompts: list[str]) -> None:
+    for idx, record in enumerate(records):
+        if any(idx not in done[prompt] for prompt in prompts):
+            extract_trace(record, idx)
+
+
 async def call_api(client: AsyncOpenAI, model: str, prompt_text: str, semaphore: asyncio.Semaphore, retries: int = 5) -> str:
     for attempt in range(retries):
         try:
@@ -100,8 +106,6 @@ async def main():
     records = [json.loads(l) for l in input_path.read_text().splitlines() if l.strip()]
     if args.limit:
         records = records[:args.limit]
-    for idx, record in enumerate(records):
-        extract_trace(record, idx)
     print(f"Loaded {len(records)} records | model={args.model} | concurrency={args.concurrency}")
     print(f"Prompts: {args.prompts}\n")
 
@@ -129,6 +133,7 @@ async def main():
         remaining = len(records) - len(done[prompt])
         print(f"  {prompt}: {len(done[prompt])} done, {remaining} remaining")
     print()
+    validate_pending_records(records, done, args.prompts)
 
     client = AsyncOpenAI(api_key=api_key)
     semaphore = asyncio.Semaphore(args.concurrency)

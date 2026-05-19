@@ -46,6 +46,23 @@ class TransformInputSchemaTest(unittest.TestCase):
                 self.assertIn("trace", message)
                 self.assertIn("text", message)
 
+    def test_validate_pending_records_ignores_completed_records(self):
+        transform.validate_pending_records(
+            [{}],
+            {"t3_struct": {0}},
+            ["t3_struct"],
+        )
+
+    def test_validate_pending_records_checks_rows_with_pending_prompt(self):
+        with self.assertRaises(ValueError) as context:
+            transform.validate_pending_records(
+                [{}],
+                {"t3_struct": {0}, "t3_reflect": set()},
+                ["t3_struct", "t3_reflect"],
+            )
+
+        self.assertIn("Record 0", str(context.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
